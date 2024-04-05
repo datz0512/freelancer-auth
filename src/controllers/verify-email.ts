@@ -7,7 +7,7 @@ export async function update(req: Request, res: Response): Promise<void> {
   const { token } = req.body;
   const checkIfUserExist: IAuthDocument | undefined = await getAuthUserByVerificationToken(token);
   if (!checkIfUserExist) {
-    throw new BadRequestError('Verification Tokenis either invalid or is already used.', 'VerifyEmail update() method error:');
+    throw new BadRequestError('Verification Token is either invalid or is already used.', 'VerifyEmail update() method error:');
   }
   await updateVerifyEmailField(checkIfUserExist.id!, 1, '');
   const updatedUser: IAuthDocument | undefined = await getAuthUserById(checkIfUserExist.id!);

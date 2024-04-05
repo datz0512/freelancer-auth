@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 
-import { emailSchema, passwordSchema } from '@auth/schemes/password';
-import { getAuthUserByPasswordToken, getUserByEmail, updatePassword, updatePasswordToken } from '@auth/services/auth.service';
+import { changePasswordSchema, emailSchema, passwordSchema } from '@auth/schemes/password';
+import {
+  getAuthUserByPasswordToken,
+  getUserByEmail,
+  getUserByUsername,
+  updatePassword,
+  updatePasswordToken
+} from '@auth/services/auth.service';
 import { BadRequestError, IAuthDocument, IEmailMessageDetails } from '@datz0512/freelancer-shared';
 import { Request, Response } from 'express';
 import { config } from '@auth/config';
@@ -80,6 +86,42 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     'auth-email',
     JSON.stringify(messageDetails),
     'Reset password success message sent to notification service.'
+  );
+
+  res.status(StatusCodes.OK).json({ message: 'Password successfully updated.' });
+}
+
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  const { error } = await Promise.resolve(changePasswordSchema.validate(req.body));
+  if (error?.details) {
+    throw new BadRequestError(error.details[0].message, 'Password changePassword() method error:');
+  }
+
+  const { currentPassword, newPassword } = req.body;
+
+  if (currentPassword === newPassword) {
+    throw new BadRequestError('Invalid password.', 'Password resetPassword() method error:');
+  }
+
+  const existingUser: IAuthDocument | undefined = await getUserByUsername(req.currentUser?.username!);
+  if (!existingUser) {
+    throw new BadRequestError('Invalid password.', 'Password resetPassword() method error:');
+  }
+
+  const hashedPassword = await AuthModel.prototype.hashPassword(newPassword);
+  await updatePassword(existingUser.id!, hashedPassword);
+
+  const messageDetails: IEmailMessageDetails = {
+    username: existingUser.username,
+    template: 'resetPasswordSuccess'
+  };
+
+  await publishDirectMessage(
+    authChannel,
+    'freelancer-email-notification',
+    'auth-email',
+    JSON.stringify(messageDetails),
+    'Password change success message sent to notification service.'
   );
 
   res.status(StatusCodes.OK).json({ message: 'Password successfully updated.' });
